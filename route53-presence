@@ -1,0 +1,51 @@
+#!/usr/bin/python
+"""
+WARNING, Here be dragons.
+
+This is a fragile way to update A records in route53.
+"""
+import argparse
+import os
+import signal
+import sys
+import time
+import requests
+
+from boto.route53.connection import Route53Connection
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Register the local instance in an Route53')
+    parser.add_argument('--ttl', metavar='<TTL>', default=60, help="TTL for A record")
+    parser.add_argument('--domain', metavar='<DOMAIN>', default="www.example.com",
+                        help='FQDN that should be used for registration (i.e. www.example.com).')
+    parser.add_argument('--hosted-zone', metavar='<ZONE>', default="example.com.",
+                        help='Hosted zone that should be used for registration (i.e. example.com. <- note trailing period).')
+    parser.add_argument('--access-key', metavar='<ACCESS>', default=os.environ.get('AWS_ACCESS_KEY'))
+    parser.add_argument('--secret-key', metavar='<SECRET>', default=os.environ.get('AWS_SECRET_KEY'))
+    args = parser.parse_args()
+
+    conn = Route53Connection(aws_access_key_id=args.access_key,aws_secret_access_key=args.secret_key)
+    zone = conn.get_zone(args.hosted_zone)
+    existing_a_records = zone.get_a(args.domain, True)
+    if existing_a_records:
+        print "deleting", existing_a_records
+        zone.delete_record(existing_a_records)
+    current_ip = requests.get("http://icanhazip.com").text.strip()
+    print "adding", args.domain, current_ip
+    zone.add_a(args.domain, current_ip, args.ttl)
+
+    def deregister_func(domain):
+        def handler(*args, **kwargs):
+            existing_a_records = zone.get_a(domain, True)
+            if existing_a_records:
+                print "deleting", existing_a_records
+                zone.delete_record(existing_a_records)
+            sys.exit(0)
+        return handler
+
+    deregister = deregister_func(args.domain)
+    signal.signal(signal.SIGTERM, deregister)
+    signal.signal(signal.SIGINT, deregister)
+
+    while True:
+        time.sleep(5)

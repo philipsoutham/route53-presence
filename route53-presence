@@ -34,18 +34,18 @@ if __name__ == '__main__':
     print "adding", args.domain, current_ip
     zone.add_a(args.domain, current_ip, args.ttl)
 
-    def deregister_func(domain):
-        def handler(*args, **kwargs):
-            existing_a_records = zone.get_a(domain, True)
-            if existing_a_records:
-                print "deleting", existing_a_records
-                zone.delete_record(existing_a_records)
-            sys.exit(0)
-        return handler
+#    def deregister_func(domain):
+#        def handler(*args, **kwargs):
+#            existing_a_records = zone.get_a(domain, True)
+#            if existing_a_records:
+#                print "deleting", existing_a_records
+#                zone.delete_record(existing_a_records)
+#            sys.exit(0)
+#        return handler
 
-    deregister = deregister_func(args.domain)
-    signal.signal(signal.SIGTERM, deregister)
-    signal.signal(signal.SIGINT, deregister)
+#    deregister = deregister_func(args.domain)
+#    signal.signal(signal.SIGTERM, deregister)
+#    signal.signal(signal.SIGINT, deregister)
 
     while True:
         time.sleep(5)
